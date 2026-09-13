@@ -19,14 +19,14 @@ pre{background:var(--bg-3);border:1px solid var(--line);border-radius:4px;paddin
 footer a,.nav a,.btn,ul.plain a,.tabs button{text-decoration:none}.nav a:hover,.nav a.on{color:var(--ink)}
 .nav .brand{color:var(--ink);font-size:18px;letter-spacing:.01em;margin-right:4px}.nav .brand b{color:var(--ink-3);font-weight:400}
 .nav .grow{flex:1}.nav .cta{background:none;color:var(--ink);border:1px solid var(--line-2);padding:6px 12px;border-radius:5px}.nav .cta:hover{border-color:var(--ink);background:var(--bg-3)}
-main{max-width:920px;margin:0 auto;padding:34px 24px 64px}
+main:not(#stage){max-width:920px;margin:0 auto;padding:34px 24px 64px}
 /* Kept as a class because pages still pass it, but it no longer changes the width:
    one column measurement across the site. */
 .narrow{max-width:920px}
 /* Serif at a full page width runs well past a readable line. Prose is capped; tables, code and
    anything laid out in columns keep the full width. */
-main p,main li,main dd{max-width:74ch}
-main table p,main table li,.card li{max-width:none}
+main:not(#stage) p,main:not(#stage) li,main:not(#stage) dd{max-width:74ch}
+main table p,main table li,.card li,#stage p,#stage li,#stage dd{max-width:none}
 h1{font-size:30px;font-weight:400;letter-spacing:-.005em;line-height:1.2;margin:0 0 12px;max-width:26ch}
 h2{font-size:20px;font-weight:400;margin:38px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
 .lede+h2,h1+h2{margin-top:8px}
@@ -63,7 +63,7 @@ footer a{color:var(--ink-2);text-decoration:none}footer a:hover{color:var(--ink)
 /* Keyboard focus has to be visible: a compliance team that runs an accessibility check will look. */
 a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:2px}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
-@media(max-width:720px){.nav .in{height:auto;flex-wrap:wrap;padding:8px 12px;gap:8px 14px}.nav .brand{width:100%}h1{font-size:30px}.cols{columns:1}dl{grid-template-columns:1fr}main{padding:24px 16px 56px}}
+@media(max-width:720px){.nav .in{height:auto;flex-wrap:wrap;padding:8px 12px;gap:8px 14px}.nav .brand{width:100%}h1{font-size:30px}.cols{columns:1}main:not(#stage) dl{grid-template-columns:1fr}main:not(#stage){padding:24px 16px 56px}}
 """
 
 def esc(s): return html.escape(str(s or ""))
