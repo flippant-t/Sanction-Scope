@@ -135,6 +135,12 @@ def build_pages(site_url):
     # own copy of the chrome. That copy is what left it on the old palette and the old nav.
     write(os.path.join(SITE, "theme.css"),
           "/* Generated from pipeline/theme.py. Do not edit by hand. */\n" + theme.CSS.lstrip())
+    # Just the navigation, for the map. Everything in it is scoped under .nav, so linking it cannot
+    # affect the map's own layout the way the full stylesheet did.
+    write(os.path.join(SITE, "nav.css"),
+          "/* Generated from pipeline/theme.py. Do not edit by hand.\n"
+          "   Only the shared navigation: nothing here selects anything outside .nav. */\n"
+          + theme.NAV_CSS.lstrip())
 
     recent = [e for e in changes.get("events", []) if e["op"] == "+"]
     urls = []

@@ -5,7 +5,25 @@ site has one palette rather than one per file."""
 import html
 import palette
 
-CSS = """
+
+# The navigation, and nothing else. The build writes this out as site/nav.css so the map can load
+# exactly these rules and no more. Sharing the whole document stylesheet with the map squeezed it
+# twice, because rules written for a text column do not belong near a full-bleed application.
+# Everything here is scoped under .nav, so it cannot reach anything else on any page.
+NAV_CSS = """
+.nav{position:sticky;top:0;z-index:20;background:var(--bg-2);border-bottom:1px solid var(--line);font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif}
+.nav .in{padding:0 18px;height:52px;display:flex;align-items:center;gap:20px;font-size:14px}
+.nav a{color:var(--ink-2);text-decoration:none}.nav a:hover,.nav a.on{color:var(--ink)}
+.nav .brand{color:var(--ink);font-size:18px;letter-spacing:.01em;margin-right:4px}.nav .brand b{color:var(--ink-3);font-weight:400}
+.nav .grow{flex:1}
+.nav .cta{background:none;color:var(--ink);border:1px solid var(--line-2);padding:6px 12px;border-radius:5px}.nav .cta:hover{border-color:var(--ink);background:var(--bg-3)}
+.nav .stamp{color:var(--ink-3);font-size:12px}
+.nav .railbtn{display:none;color:var(--ink-3);font-size:12px;cursor:pointer;border:1px solid var(--line);padding:3px 8px;border-radius:5px}
+@media(min-width:761px){.nav .railbtn{display:inline}}
+@media(max-width:720px){.nav .in{height:auto;flex-wrap:wrap;padding:8px 12px;gap:8px 14px}.nav .brand{width:100%}.nav .stamp{display:none}}
+"""
+
+CSS = NAV_CSS + """
 """ + palette.root_block() + """
 *{box-sizing:border-box}html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
@@ -13,12 +31,7 @@ a{color:var(--ink);text-decoration-color:var(--line-2);text-underline-offset:2px
 code,pre,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em}
 code{background:var(--bg-3);border:1px solid var(--line);border-radius:3px;padding:1px 5px}
 pre{background:var(--bg-3);border:1px solid var(--line);border-radius:4px;padding:14px 16px;overflow:auto;line-height:1.55}pre code{background:none;border:0;padding:0}
-.nav{position:sticky;top:0;z-index:20;background:var(--bg-2);border-bottom:1px solid var(--line)}
-.nav .in{padding:0 18px;height:52px;display:flex;align-items:center;gap:20px;font-size:14px}
-.nav a{color:var(--ink-2);text-decoration:none}
-footer a,.nav a,.btn,ul.plain a,.tabs button{text-decoration:none}.nav a:hover,.nav a.on{color:var(--ink)}
-.nav .brand{color:var(--ink);font-size:18px;letter-spacing:.01em;margin-right:4px}.nav .brand b{color:var(--ink-3);font-weight:400}
-.nav .grow{flex:1}.nav .cta{background:none;color:var(--ink);border:1px solid var(--line-2);padding:6px 12px;border-radius:5px}.nav .cta:hover{border-color:var(--ink);background:var(--bg-3)}
+footer a,.btn,ul.plain a,.tabs button{text-decoration:none}
 main:not(#stage){max-width:920px;margin:0 auto;padding:34px 24px 64px}
 /* Kept as a class because pages still pass it, but it no longer changes the width:
    one column measurement across the site. */
@@ -63,7 +76,7 @@ footer a{color:var(--ink-2);text-decoration:none}footer a:hover{color:var(--ink)
 /* Keyboard focus has to be visible: a compliance team that runs an accessibility check will look. */
 a:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:2px}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
-@media(max-width:720px){.nav .in{height:auto;flex-wrap:wrap;padding:8px 12px;gap:8px 14px}.nav .brand{width:100%}h1{font-size:30px}.cols{columns:1}main:not(#stage) dl{grid-template-columns:1fr}main:not(#stage){padding:24px 16px 56px}}
+@media(max-width:720px){h1{font-size:30px}.cols{columns:1}main:not(#stage) dl{grid-template-columns:1fr}main:not(#stage){padding:24px 16px 56px}}
 """
 
 def esc(s): return html.escape(str(s or ""))
