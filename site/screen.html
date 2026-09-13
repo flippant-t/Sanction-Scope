@@ -32,15 +32,16 @@
 </style>
 </head>
 <body>
-<div class="nav"><div class="in"><a class="brand" href="./">Sanction<b>Scope</b></a><a href="./">Map</a><a href="screen.html" class=on>Screen a list</a><a href="api/">API</a><a href="about.html">Coverage</a><span class="grow"></span><a class="cta" href="api/#pricing">Pricing</a></div></div>
+<div class="nav"><div class="in"><a class="brand" href="./">Sanction<b>Scope</b></a><a href="./">Map</a><a href="screen.html" class=on>Screen a list</a><a href="api/">API</a><a href="about.html">Coverage</a><span class="grow"></span><a href="app.html" id="acctlink">Sign in</a><a class="cta" href="api/#pricing">Pricing</a></div></div>
+<script>(function(){try{var k=Object.keys(localStorage).find(function(x){return /^sb-.*-auth-token$/.test(x)});if(!k)return;var t=JSON.parse(localStorage.getItem(k)||"null");if(!t||!t.access_token)return;if(t.expires_at&&t.expires_at*1000<Date.now())return;var a=document.getElementById("acctlink");if(a)a.textContent="Your screening";}catch(e){}})();</script>
 <main class="narrow">
-<h1>Screen a list without uploading it</h1>
-<p class="lede">Matching runs in your browser against all six lists. The names you paste never leave your machine, are never sent to this site, and are not logged anywhere. Paste one name per line, or drop in a CSV and the first column is used.</p>
+<h1>Screen a list of names</h1>
+<p class="lede">Paste names, or load a spreadsheet. Matching runs against all six lists inside this browser tab, so the names stay on your machine: nothing is sent to this site and nothing is logged. Free, no account needed.</p>
 
 <textarea id="names" placeholder="Sberbank of Russia&#10;Ivan Ivanov&#10;Acme Trading FZE"></textarea>
 <div class="ctl">
   <button class="btn warm" id="run">Screen</button>
-  <input type="file" id="file" accept=".csv,.txt" style="display:none"><button class="btn" id="pick">Load CSV</button>
+  <input type="file" id="file" accept=".xlsx,.xls,.csv,.txt" style="display:none"><button class="btn" id="pick">Load a file</button>
   <label for="th">Threshold
     <input type="range" id="th" min="0.6" max="1" step="0.01" value="0.85">
     <b id="thv">0.85</b> <span id="thword">balanced</span>
@@ -61,6 +62,7 @@
 <footer><div class="in"><span class="grow">SanctionScope. US, EU, UK, UN, Australian and Canadian sanctions lists on one map. Not legal advice; verify against the official record.</span>
 <a href="programs/">Programs</a><a href="countries/">Countries</a><a href="parties/">Parties</a><a href="vessels/">Vessels</a><a href="api/v1/feed.xml">RSS</a><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a><a href="mailto:hello@sanctionscope.com">Contact</a></div></footer>
 
+<script src="vendor/xlsx.mini.min.js"></script>
 <script>
 const LEGAL=new Set("LLC LTD LIMITED INC CORP CORPORATION CO COMPANY GMBH AG SA SAS SARL BV NV PLC PJSC JSC OJSC CJSC OAO ZAO OOO AO PAO LLP LP SRL SPA PTE PTY PVT FZE FZCO THE OF AND PUBLIC JOINT STOCK OPEN CLOSED".split(" "));
 const norm=s=>(s||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9 ]+/g," ").replace(/\s+/g," ").trim();
@@ -147,7 +149,66 @@ const thEl=document.getElementById('th');
 thEl.oninput=e=>{const v=+e.target.value;document.getElementById('thv').textContent=v.toFixed(2);document.getElementById('thword').textContent=thWord(v);};
 document.getElementById('run').onclick=run;
 document.getElementById('pick').onclick=()=>document.getElementById('file').click();
-document.getElementById('file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const lines=r.result.split(/\r?\n/).map(l=>l.split(/[,;\t]/)[0].replace(/^"|"$/g,'').trim()).filter(Boolean);document.getElementById('names').value=lines.join('\n');document.getElementById('status').textContent=`${lines.length.toLocaleString()} names loaded from the file. It was read in this browser, not uploaded.`;};r.readAsText(f);};
+
+// Reads .xlsx, .xls, .csv and .txt, all in this tab. The file is never uploaded: it is read with
+// FileReader and parsed here, which is the whole point of this page.
+function useRows(rows, fileName){
+  rows = rows.filter(r => r && r.some(c => String(c ?? '').trim()));
+  if(!rows.length){ setStatus('That file had no rows in it.'); return; }
+  const width = Math.max(...rows.map(r => r.length));
+  // A header row is likely if the first row has no cell that looks like a person or company name
+  // with a space in it, and the rows below do.
+  const head = rows[0].map(c => String(c ?? '').trim());
+  const looksHeader = width > 1 && head.some(c => /^(name|party|customer|client|counterparty|vendor|supplier|entity)/i.test(c));
+  const body = looksHeader ? rows.slice(1) : rows;
+  let col = 0;
+  if (width > 1) {
+    // Pick the column with the most space-containing text, which is almost always the names.
+    let best = -1;
+    for (let c = 0; c < width; c++) {
+      const score = body.reduce((n, r) => n + (/\S\s\S/.test(String(r[c] ?? '')) ? 1 : 0), 0);
+      if (score > best) { best = score; col = c; }
+    }
+  }
+  const names = body.map(r => String(r[col] ?? '').trim()).filter(Boolean);
+  document.getElementById('names').value = names.join('\n');
+  const where = looksHeader && head[col] ? `column "${head[col]}"` : `column ${col + 1}`;
+  setStatus(`${names.length.toLocaleString()} names loaded from ${where} of ${fileName}. The file was read in this browser, not uploaded.`);
+}
+
+function setStatus(t){ document.getElementById('status').textContent = t; }
+
+document.getElementById('file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const isSheet = /\.(xlsx|xls)$/i.test(f.name);
+  const r = new FileReader();
+  r.onerror = () => setStatus('Could not read that file.');
+  r.onload = () => {
+    try {
+      if (isSheet) {
+        const wb = XLSX.read(new Uint8Array(r.result), { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        useRows(XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false }), f.name);
+      } else {
+        const rows = String(r.result).split(/\r?\n/).map(l => l.split(/[,;\t]/).map(c => c.replace(/^"|"$/g, '')));
+        useRows(rows, f.name);
+      }
+    } catch (err) { setStatus('Could not read that file: ' + (err.message || err)); }
+  };
+  isSheet ? r.readAsArrayBuffer(f) : r.readAsText(f);
+};
+
+// Pasting straight out of Excel brings tab-separated cells. Keep the first column rather than
+// treating the whole row as one very long name.
+document.getElementById('names').addEventListener('paste', ev => {
+  const text = (ev.clipboardData || window.clipboardData).getData('text');
+  if (!text || !text.includes('\t')) return;
+  ev.preventDefault();
+  const names = text.split(/\r?\n/).map(l => l.split('\t')[0].trim()).filter(Boolean);
+  const el = document.getElementById('names');
+  el.value = (el.value ? el.value.replace(/\s*$/, '\n') : '') + names.join('\n');
+  setStatus(`${names.length.toLocaleString()} names taken from the first column of what you pasted.`);
+});
 document.getElementById('dl').onclick=()=>{
   const rows=[['name','result','match','score','id','type','country','authorities','programs']];
   for(const r of RESULTS){

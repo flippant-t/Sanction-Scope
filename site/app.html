@@ -22,6 +22,7 @@
   .clear{color:var(--ink-3)}
   .score{font-variant-numeric:tabular-nums;color:var(--ink-2);text-align:right;white-space:nowrap}
   .who{font-size:14px;color:var(--ink-3)}
+  #signout{font-size:14px}
   #msg{margin:12px 0;font-size:14px}
   #msg.bad{color:var(--bad)}
   tr.rowlink{cursor:pointer}
@@ -30,7 +31,7 @@
 </style>
 </head>
 <body>
-<div class="nav"><div class="in"><a class="brand" href="./">Sanction<b>Scope</b></a><a href="./">Map</a><a href="screen.html">Screen a list</a><a href="api/">API</a><a href="about.html">Coverage</a><span class="grow"></span><span class="who" id="who"></span><a class="cta hidden" href="#" id="signout">Sign out</a></div></div>
+<div class="nav"><div class="in"><a class="brand" href="./">Sanction<b>Scope</b></a><a href="./">Map</a><a href="screen.html">Screen a list</a><a href="api/">API</a><a href="about.html">Coverage</a><span class="grow"></span><span class="who" id="who"></span><a href="#" id="signout" class="hidden">Sign out</a><a class="cta" href="api/#pricing">Pricing</a></div></div>
 
 <main class="narrow">
 
@@ -55,7 +56,7 @@
   <textarea id="names" placeholder="Sberbank of Russia&#10;Ivan Ivanov&#10;Acme Trading FZE"></textarea>
   <div class="ctl">
     <button class="btn warm" id="run">Screen and save</button>
-    <input type="file" id="file" accept=".csv,.txt" class="hidden"><button class="btn" id="pick">Load CSV</button>
+    <input type="file" id="file" accept=".xlsx,.xls,.csv,.txt" class="hidden"><button class="btn" id="pick">Load a file</button>
     <label for="th">Threshold <input type="range" id="th" min="0.6" max="1" step="0.01" value="0.85"> <b id="thv">0.85</b> <span class="meta" id="thword">balanced</span></label>
     <input id="label" type="text" placeholder="Label, e.g. Q3 onboarding" style="max-width:240px">
   </div>
@@ -73,6 +74,7 @@
 <footer><div class="in"><span class="grow">SanctionScope. Not legal advice; verify against the official record.</span>
 <a href="about.html">Coverage</a><a href="api/">API</a><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a><a href="mailto:hello@sanctionscope.com">Contact</a></div></footer>
 
+<script src="vendor/xlsx.mini.min.js"></script>
 <script type="module">
 // Vendored rather than pulled from a CDN, like d3 and maplibre already are. Keeps the site
 // Content Security Policy at script-src 'self', and means a third-party CDN outage cannot take
@@ -206,9 +208,52 @@ $("signout").onclick = async e => { e.preventDefault(); await sb.auth.signOut();
 function thWord(v) { return v >= 0.90 ? "strict" : v >= 0.82 ? "balanced" : v >= 0.75 ? "wide" : "research only"; }
 $("th").oninput = e => { const v = +e.target.value; $("thv").textContent = v.toFixed(2); $("thword").textContent = thWord(v); };
 $("pick").onclick = () => $("file").click();
-$("file").onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader();
-  r.onload = () => { $("names").value = r.result.split(/\r?\n/).map(l => l.split(/[,;\t]/)[0].replace(/^"|"$/g,"").trim()).filter(Boolean).join("\n"); };
-  r.readAsText(f); };
+// Same reader as the free screener: Excel, CSV or text, parsed in this tab rather than uploaded.
+function useRows(rows, fileName) {
+  rows = rows.filter(r => r && r.some(c => String(c ?? "").trim()));
+  if (!rows.length) { $("status").textContent = "That file had no rows in it."; return; }
+  const width = Math.max(...rows.map(r => r.length));
+  const head = rows[0].map(c => String(c ?? "").trim());
+  const looksHeader = width > 1 && head.some(c => /^(name|party|customer|client|counterparty|vendor|supplier|entity)/i.test(c));
+  const body = looksHeader ? rows.slice(1) : rows;
+  let col = 0;
+  if (width > 1) { let best = -1;
+    for (let c = 0; c < width; c++) {
+      const score = body.reduce((n, r) => n + (/\S\s\S/.test(String(r[c] ?? "")) ? 1 : 0), 0);
+      if (score > best) { best = score; col = c; }
+    } }
+  const names = body.map(r => String(r[col] ?? "").trim()).filter(Boolean);
+  $("names").value = names.join("\n");
+  const where = looksHeader && head[col] ? `column "${head[col]}"` : `column ${col + 1}`;
+  $("status").textContent = `${names.length.toLocaleString()} names loaded from ${where} of ${fileName}.`;
+}
+
+$("file").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const isSheet = /\.(xlsx|xls)$/i.test(f.name);
+  const r = new FileReader();
+  r.onerror = () => { $("status").textContent = "Could not read that file."; };
+  r.onload = () => {
+    try {
+      if (isSheet) {
+        const wb = XLSX.read(new Uint8Array(r.result), { type: "array" });
+        useRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, blankrows: false }), f.name);
+      } else {
+        useRows(String(r.result).split(/\r?\n/).map(l => l.split(/[,;\t]/).map(c => c.replace(/^"|"$/g, ""))), f.name);
+      }
+    } catch (err) { $("status").textContent = "Could not read that file: " + (err.message || err); }
+  };
+  isSheet ? r.readAsArrayBuffer(f) : r.readAsText(f);
+};
+
+$("names").addEventListener("paste", ev => {
+  const text = (ev.clipboardData || window.clipboardData).getData("text");
+  if (!text || !text.includes("\t")) return;
+  ev.preventDefault();
+  const names = text.split(/\r?\n/).map(l => l.split("\t")[0].trim()).filter(Boolean);
+  $("names").value = ($("names").value ? $("names").value.replace(/\s*$/, "\n") : "") + names.join("\n");
+  $("status").textContent = `${names.length.toLocaleString()} names taken from the first column of what you pasted.`;
+});
 
 async function ensureSubjects(names) {
   // One row per distinct name, reused across runs, so a name accumulates a history.
