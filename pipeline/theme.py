@@ -14,7 +14,7 @@ code,pre,kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fo
 code{background:var(--bg-3);border:1px solid var(--line);border-radius:3px;padding:1px 5px}
 pre{background:var(--bg-3);border:1px solid var(--line);border-radius:4px;padding:14px 16px;overflow:auto;line-height:1.55}pre code{background:none;border:0;padding:0}
 .nav{position:sticky;top:0;z-index:20;background:var(--bg-2);border-bottom:1px solid var(--line)}
-.nav .in{padding:0 18px;height:52px;display:flex;align-items:center;gap:20px;font-size:15px}
+.nav .in{padding:0 18px;height:52px;display:flex;align-items:center;gap:20px;font-size:14px}
 .nav a{color:var(--ink-2);text-decoration:none}
 footer a,.nav a,.btn,ul.plain a,.tabs button{text-decoration:none}.nav a:hover,.nav a.on{color:var(--ink)}
 .nav .brand{color:var(--ink);font-size:18px;letter-spacing:.01em;margin-right:4px}.nav .brand b{color:var(--ink-3);font-weight:400}
