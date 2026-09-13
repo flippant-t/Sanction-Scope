@@ -20,7 +20,9 @@ footer a,.nav a,.btn,ul.plain a,.tabs button{text-decoration:none}.nav a:hover,.
 .nav .brand{color:var(--ink);font-size:18px;letter-spacing:.01em;margin-right:4px}.nav .brand b{color:var(--ink-3);font-weight:400}
 .nav .grow{flex:1}.nav .cta{background:none;color:var(--ink);border:1px solid var(--line-2);padding:6px 12px;border-radius:5px}.nav .cta:hover{border-color:var(--ink);background:var(--bg-3)}
 main{max-width:920px;margin:0 auto;padding:34px 24px 64px}
-.narrow{max-width:760px}
+/* Kept as a class because pages still pass it, but it no longer changes the width:
+   one column measurement across the site. */
+.narrow{max-width:920px}
 /* Serif at a full page width runs well past a readable line. Prose is capped; tables, code and
    anything laid out in columns keep the full width. */
 main p,main li,main dd{max-width:74ch}
