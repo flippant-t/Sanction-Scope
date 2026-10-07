@@ -191,12 +191,12 @@ def build_api(site_url):
         desc = ", ".join(x for x in [e.get("t"), e.get("s"), ", ".join(e.get("p") or []), meta["iso_name"].get(e.get("cc"), "")] if x)
         link = f"{site_url}#p={e['id']}"
         items.append(f"<item><title>{html.escape(title)}</title><link>{html.escape(link)}</link><guid isPermaLink=\"false\">{html.escape(e['op'] + e['id'] + e['d'])}</guid><pubDate>{e['d']}</pubDate><description>{html.escape(desc)}</description></item>")
-    rss = f"""<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>SanctionScope changes</title><link>{html.escape(site_url)}</link><description>Additions and removals across the US, EU, UK, UN, Australian and Canadian sanctions lists, updated nightly.</description>{''.join(items)}</channel></rss>"""
+    rss = f"""<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>SanctionScope changes</title><link>{html.escape(site_url)}</link><description>Additions and removals across the US, EU, UK, UN, Swiss, Japanese, Australian and Canadian sanctions lists, updated nightly.</description>{''.join(items)}</channel></rss>"""
     with open(os.path.join(API, "feed.xml"), "w", encoding="utf-8") as f: f.write(rss)
 
     # OpenAPI-ish description
     dump(os.path.join(API, "openapi.json"), {
-        "openapi": "3.0.0", "info": {"title": "SanctionScope API", "version": "1", "description": "Merged sanctions lists (US, EU, UK, UN, AU, CA), geocoded, with cross-list relationships. Static JSON plus a few query endpoints. Free, no key."},
+        "openapi": "3.0.0", "info": {"title": "SanctionScope API", "version": "1", "description": "Merged sanctions lists (US, EU, UK, UN, AU, CA, CH, JP), geocoded, with cross-list relationships. Static JSON plus a few query endpoints. Free, no key."},
         "servers": [{"url": site_url + "api/v1"}],
         "paths": {
             "/meta.json": {"get": {"summary": "Build info, counts, authority status"}},
@@ -235,11 +235,11 @@ def build_api(site_url):
     n_auth = sum(1 for v in meta["authorities"].values() if v["ok"])
     F, P = LIMITS["free"], LIMITS["pro"]
     AUTH_NAME = {"US": "United States", "EU": "European Union", "UK": "United Kingdom",
-                 "UN": "United Nations", "AU": "Australia", "CA": "Canada"}
+                 "UN": "United Nations", "AU": "Australia", "CA": "Canada", "CH": "Switzerland", "JP": "Japan"}
     AUTH_LIST = {"US": "Consolidated Screening List (OFAC SDN and non-SDN, BIS Entity, Denied Persons, Unverified and MEU, State Department)",
                  "EU": "Consolidated Financial Sanctions List", "UK": "UK Sanctions List (FCDO)",
                  "UN": "Security Council Consolidated List", "AU": "DFAT Consolidated List",
-                 "CA": "SEMA and autonomous sanctions"}
+                 "CA": "SEMA and autonomous sanctions", "CH": "SECO sanctions list", "JP": "Ministry of Finance asset-freeze list"}
     # Freshness is what a compliance reader checks first, so it replaces the counters that used to
     # sit here. Every authority shown as loaded was fetched during this build; a failure is named.
     auth_rows = "".join(
@@ -249,8 +249,8 @@ def build_api(site_url):
         for a, v in meta["authorities"].items())
     tabs_js = """<script>document.querySelectorAll('.tabs').forEach(t=>{const pres=[];let n=t.nextElementSibling;while(n&&n.tagName==='PRE'){pres.push(n);n=n.nextElementSibling;}
       t.querySelectorAll('button').forEach((b,i)=>b.onclick=()=>{t.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');pres.forEach((p,j)=>p.style.display=i===j?'':'none');});pres.forEach((p,j)=>p.style.display=j?'none':'');});</script>"""
-    body = f"""<h1>Screen a name against six sanctions lists in one request</h1>
-<p class="lede">{meta['parties']:,} designated parties from the US, EU, UK, UN, Australian and Canadian lists, merged so one party is one record however many authorities carry it. Rebuilt every night from the official sources. No key needed to start.</p>
+    body = f"""<h1>Screen a name against eight sanctions lists in one request</h1>
+<p class="lede">{meta['parties']:,} designated parties from the US, EU, UK, UN, Swiss, Japanese, Australian and Canadian lists, merged so one party is one record however many authorities carry it. Rebuilt every night from the official sources. No key needed to start.</p>
 <div class="row"><a class="btn warm" href="#quickstart">Get started free</a><a class="btn" href="#monitoring">See monitoring</a></div>
 
 <h2 id="try">See it work</h2>
@@ -289,7 +289,7 @@ def build_api(site_url):
 <p><b>Screening is free, unlimited, and needs no key.</b> Unlimited requests, {F['screen']} names in each, every static file, and an in-browser screener with no limit at all. That is not a trial. If screening is what you need, you are done, and nothing below applies to you.</p>
 <p>Pro is $19.99 a month and exists for one reason: it keeps watching after you stop asking.</p>
 <table><tr><th>Pro adds</th><th>&nbsp;</th></tr>
-<tr><td><b>Monitoring</b><br><span class="meta">Leave names under watch. Every nightly build rechecks them against all six lists and raises an alert by email or webhook when a watched name starts matching, when an existing match is amended, and when one is delisted. The counterparty who cleared in January and is designated in March is the case this exists for.</span></td><td class="nw">Included</td></tr>
+<tr><td><b>Monitoring</b><br><span class="meta">Leave names under watch. Every nightly build rechecks them against all eight lists and raises an alert by email or webhook when a watched name starts matching, when an existing match is amended, and when one is delisted. The counterparty who cleared in January and is designated in March is the case this exists for.</span></td><td class="nw">Included</td></tr>
 <tr><td><b>Deeper candidate search</b><br><span class="meta">{P['candidates']} possible matches scored per name instead of {F['candidates']}, which surfaces more distant spelling variants.</span></td><td class="nw">{P['candidates']} per name</td></tr>
 <tr><td><b>Bigger batches</b><br><span class="meta">For a client book or a subscription list going through in one pass.</span></td><td class="nw">{P['screen']} names per request<br>{P['search']} search results</td></tr>
 <tr><td><b>Commercial use and support</b></td><td class="nw">Included</td></tr></table>
@@ -297,7 +297,7 @@ def build_api(site_url):
 <p class="meta">Cancel any time; access runs to the end of the paid period. Keys are issued on the page you land on after checkout and can be re-shown by reopening that link. Send the key as an <code>x-api-key</code> header rather than <code>?key=</code>, which leaks into logs and browser history. <code>GET me</code> confirms the tier. Keys deactivate automatically when a subscription ends. Tax is calculated at checkout.</p>
 
 <h2 id="monitoring">Monitoring</h2>
-<p>Screening answers a question about today. Monitoring answers it every night without being asked. Post the names you want watched; every nightly build rechecks them against all six lists and raises an alert when something changes.</p>
+<p>Screening answers a question about today. Monitoring answers it every night without being asked. Post the names you want watched; every nightly build rechecks them against all eight lists and raises an alert when something changes.</p>
 <pre><code># put a book of counterparties under watch
 curl -X POST "{ex}watchlist" -H "content-type: application/json" \\
   -H "x-api-key: YOUR_KEY" \\
@@ -312,7 +312,7 @@ curl "{ex}alerts?since=2026-09-01" -H "x-api-key: YOUR_KEY"</code></pre>
 
 <h2 id="quickstart">Quick start</h2>
 <div class="tabs"><button class="on">curl</button><button>Python</button><button>JavaScript</button></div>
-<pre><code># search across all six lists
+<pre><code># search across all eight lists
 curl "{ex}search?q=sberbank"
 
 # one record
@@ -383,7 +383,7 @@ const scr  = await (await fetch(BASE + "screen", {{
 <h3>Record shape</h3>
 <pre><code>{{
   "id": "ofa:31695", "n": "Central Bank of the Russian Federation", "t": "Entity",
-  "au": ["US","EU","UK","AU","CA"],          authorities listing this party (merged by name)
+  "au": ["US","EU","UK","AU","CA","CH","JP"],          authorities listing this party (merged by name)
   "p": ["RUSSIA-EO14024","EU:RUS", ...],     programs; non-US prefixed by authority
   "s": "OFAC other", "list": "Sectoral Sanctions Identifications List ...",
   "cc": "RU", "lat": 55.75, "lon": 37.61, "city": "Moscow",
@@ -398,7 +398,7 @@ const scr  = await (await fetch(BASE + "screen", {{
 <h3>Terms</h3>
 <p class="sub">Source data are official government publications; the merged form is released CC0. No uptime guarantee on the free tier; please cache and keep request volume reasonable. Support for Pro subscribers at <a href="mailto:hello@sanctionscope.com">hello@sanctionscope.com</a>.</p>
 {tabs_js}"""
-    doc = theme.shell("API", f"Sanctions screening and monitoring API across the US, EU, UK, UN, Australian and Canadian lists: {meta['parties']:,} merged parties, free tier with no key, Pro monitoring from $19.99 a month.", body, site_url, site_url + "api/", on="API", built=meta["date"], narrow=False)
+    doc = theme.shell("API", f"Sanctions screening and monitoring API across the US, EU, UK, UN, Swiss, Japanese, Australian and Canadian lists: {meta['parties']:,} merged parties, free tier with no key, Pro monitoring from $19.99 a month.", body, site_url, site_url + "api/", on="API", built=meta["date"], narrow=False)
     os.makedirs(os.path.join(SITE, "api"), exist_ok=True)
     with open(os.path.join(SITE, "api", "index.html"), "w", encoding="utf-8") as f: f.write(doc)
     return len(parties), len(shards), n_shards_search

@@ -48,6 +48,8 @@ DATA = {
     "c-un":          "#4a5568",
     "c-au":          "#7e9b2e",   # olive, so it does not read as BIS green
     "c-ca":          "#c0392b",
+    "c-ch":          "#c8a227",
+    "c-jp":          "#0b3d91",
     # not categories: structure drawn over the map, deliberately neutral so it never
     # competes with a category colour
     "c-cluster":     "#8a8f95",

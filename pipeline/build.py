@@ -194,7 +194,7 @@ def geocode(addr):
     return iso, None, None, None
 
 # ------------------------------------------------------------------ parsing
-AUTH_ORDER = ["US", "EU", "UK", "UN", "AU", "CA"]
+AUTH_ORDER = ["US", "EU", "UK", "UN", "AU", "CA", "CH", "JP"]
 # When one entity sits on several US lists, the merged party takes its id from the highest-ranked list.
 # Without a fixed rank the id came from whichever row the download listed first, so ids flipped between builds.
 SOURCE_RANK = {"OFAC SDN": 0, "OFAC other": 1, "BIS Entity List": 2, "BIS other": 3, "State / other": 4}
@@ -610,7 +610,7 @@ STATE_DIR = os.path.join(ROOT, "state")
 STATE_PATH = os.path.join(STATE_DIR, "state.json")      # outside site/, so it is never deployed
 OLD_STATE_PATH = os.path.join(OUT, "state.json")
 STATE_VERSION = 2
-PFX_AUTH = {"ofa": "US", "bis": "US", "sta": "US", "eu": "EU", "uk": "UK", "un": "UN", "au": "AU", "ca": "CA"}
+PFX_AUTH = {"ofa": "US", "bis": "US", "sta": "US", "eu": "EU", "uk": "UK", "un": "UN", "au": "AU", "ca": "CA", "ch": "CH", "jp": "JP"}
 def auth_of_id(pid): return PFX_AUTH.get(pid.split(":")[0], "US")
 MASS_REMOVAL = (50, 0.10)     # more removals than max(50, 10% of an authority's records) in one run is a broken feed, not delistings
 RELIST_DAYS = 7               # a record back after this long is a new listing; sooner, the removal was a glitch
@@ -730,7 +730,7 @@ def main():
     ap.add_argument("--date", help="override build date (YYYY-MM-DD)")
     ap.add_argument("--sample-dir", help="folder with local copies of eu.csv, uk.csv, un.xml, au.xlsx, ca.xml (offline testing)")
     ap.add_argument("--us-only", action="store_true", help="skip the non-US lists")
-    ap.add_argument("--only", help="comma-separated subset of EU,UK,UN,AU,CA to load")
+    ap.add_argument("--only", help="comma-separated subset of EU,UK,UN,AU,CA,CH,JP to load")
     ap.add_argument("--site-url", default=os.environ.get("SITE_URL", ""), help="public base URL, used for canonical links and sitemap.xml")
     args = ap.parse_args()
     today = args.date or dt.date.today().isoformat()

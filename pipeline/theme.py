@@ -101,7 +101,7 @@ def header(rel, on=""):
     # "Methods" described the page accurately and got no clicks: someone assessing a data source
     # looks for coverage, not methodology. Vessels moved to the footer while AIS coverage is
     # partial; it was taking a top-level slot from the two pages that earn money.
-    items = [("Map", ""), ("Screen a list", "screen.html"), ("API", "api/"), ("Coverage", "about.html")]
+    items = [("Check a name", ""), ("Check a list", "screen.html"), ("Map", "map.html"), ("API", "api/"), ("Coverage", "about.html")]
     # On a page at the site root, rel is "" and the Map link would come out as href="",
     # which reloads the current page instead of going to the map. "./" is the root there.
     links = "".join(f'<a href="{(rel + h) or "./"}"{" class=on" if k == on else ""}>{k}</a>' for k, h in items)
@@ -110,7 +110,7 @@ def header(rel, on=""):
     return f'<div class="nav"><div class="in"><a class="brand" href="{rel or "./"}">Sanction<b>Scope</b></a>{links}<span class="grow"></span><a href="{rel}app.html" id="acctlink">Sign in</a><a class="cta" href="{rel}api/#pricing">Pricing</a></div></div>' + SESSION_JS
 
 def footer(rel, built=""):
-    return f'''<footer><div class="in"><span class="grow">SanctionScope. US, EU, UK, UN, Australian and Canadian sanctions lists on one map{(", rebuilt " + esc(built)) if built else ""}. Not legal advice; verify against the official record.</span>
+    return f'''<footer><div class="in"><span class="grow">SanctionScope. US, EU, UK, UN, Swiss, Japanese, Australian and Canadian sanctions lists on one map{(", rebuilt " + esc(built)) if built else ""}. Not legal advice; verify against the official record.</span>
 <a href="{rel}programs/">Programs</a><a href="{rel}countries/">Countries</a><a href="{rel}parties/">Parties</a><a href="{rel}vessels/">Vessels</a><a href="{rel}api/v1/feed.xml">RSS</a><a href="{rel}terms.html">Terms</a><a href="{rel}privacy.html">Privacy</a><a href="mailto:hello@sanctionscope.com">Contact</a></div></footer>'''
 
 def shell(title, desc, body, rel, canonical, on="", built="", extra_head="", narrow=True):

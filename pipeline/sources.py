@@ -19,9 +19,13 @@ SOURCES = {
     "UK": ("UK Sanctions List (FCDO)", "https://sanctionslist.fcdo.gov.uk/docs/UK-Sanctions-List.csv", "uk.csv"),
     "UN": ("UN Security Council Consolidated List", "https://scsanctions.un.org/resources/xml/en/consolidated.xml", "un.xml"),
     "AU": ("Australia DFAT Consolidated List", "https://www.dfat.gov.au/sites/default/files/Australian_Sanctions_Consolidated_List.xlsx", "au.xlsx"),
+    "CH": ("Switzerland SECO Sanctions List", "https://www.sesam.search.admin.ch/sesam-search-web/pages/downloadXmlGesamtliste.xhtml?lang=en&action=downloadXmlGesamtlisteAction", "ch.xml"),
+    "JP": ("Japan MOF Asset-Freeze List", "https://www.mof.go.jp/policy/international_policy/gaitame_kawase/gaitame/economic_sanctions/list.html", "jp.csv"),
     "CA": ("Canada SEMA / Autonomous Sanctions", "https://www.international.gc.ca/world-monde/assets/office_docs/international_relations-relations_internationales/sanctions/sema-lmes.xml", "ca.xml"),
 }
 RECORD_URL = {
+    "JP": "https://www.mof.go.jp/policy/international_policy/gaitame_kawase/gaitame/economic_sanctions/list.html",
+    "CH": "https://www.sesam.search.admin.ch/sesam-search-web/pages/search.xhtml?lang=en",
     "EU": "https://www.sanctionsmap.eu/#/main", "UK": "https://www.gov.uk/government/publications/the-uk-sanctions-list",
     "UN": "https://main.un.org/securitycouncil/en/content/un-sc-consolidated-list", "AU": "https://www.dfat.gov.au/international-relations/security/sanctions/consolidated-list",
     "CA": "https://www.international.gc.ca/world-monde/international_relations-relations_internationales/sanctions/consolidated-consolide.aspx",
@@ -33,6 +37,14 @@ def fetch(auth, sample_dir=None):
         p = os.path.join(sample_dir, fname)
         if not os.path.exists(p): raise FileNotFoundError(p)
         with open(p, "rb") as f: return f.read()
+    if auth == "JP":
+        # The Ministry of Finance publishes the list as a dated file (shisantouketsu20261002.csv), so the
+        # current file name has to be read off the index page.
+        from urllib.parse import urljoin
+        page = get_with_retries(url, UA, timeout=120).decode("utf-8", errors="replace")
+        m = re.search(r'href="([^"]*shisantouketsu\d+\.csv)"', page)
+        if not m: raise ValueError("no asset-freeze CSV link on the MOF page")
+        url = urljoin(url, m.group(1))
     return get_with_retries(url, UA, timeout=240)
 
 def get_with_retries(url, headers, timeout, attempts=4, wait=(10, 30, 90)):
@@ -297,7 +309,110 @@ def parse_ca(raw):
         out.append(r0)
     return out
 
-PARSERS = {"EU": parse_eu, "UK": parse_uk, "UN": parse_un, "AU": parse_au, "CA": parse_ca}
+# ------------------------------------------------------------------ CH
+def parse_ch(raw):
+    """SECO swiss-sanctions-list XML. Programs are keyed by sanctions-set id; each <target> keeps its full
+    modification history (newest first), so a target whose latest modification is 'de-listed' is skipped."""
+    root = ET.fromstring(raw)
+    prog_of = {}
+    for sp in root.iter("sanctions-program"):
+        key = ""
+        for k in sp.findall("program-key"):
+            if k.get("lang") == "eng": key = clean(k.text)
+        for ss in sp.findall("sanctions-set"):
+            if ss.get("lang") == "eng" and key: prog_of.setdefault(ss.get("ssid"), key)
+    def names(identity):
+        prim, alts = "", []
+        for n in identity.findall("name"):
+            parts = sorted(n.findall("name-part"), key=lambda x: int(x.get("order") or 0))
+            whole = [p for p in parts if p.get("name-part-type") == "whole-name"]
+            if whole:
+                forms = [[clean(whole[0].findtext("value"))] + [clean(v.text) for v in whole[0].findall("spelling-variant")]]
+            else:
+                fam = [p for p in parts if p.get("name-part-type") == "family-name"]
+                oth = [p for p in parts if p.get("name-part-type") != "family-name"]
+                forms = [[]]
+                for p in oth + fam:
+                    vs = [clean(p.findtext("value"))] + [clean(v.text) for v in p.findall("spelling-variant") if (v.get("script") or "") == "LATN"]
+                    forms = [f + [v] for f in forms for v in dict.fromkeys(vs) if v][:6]
+                forms = [[" ".join(f)] for f in forms]
+            nm = [f[0] if len(f) == 1 else " ".join(f) for f in forms] if not whole else forms[0]
+            if n.get("name-type") == "primary-name" and not prim:
+                prim, alts = nm[0], alts + nm[1:]
+            else:
+                alts += nm
+        return prim, alts
+    out = []
+    for t in root.findall("target"):
+        mods = [m for m in t.findall("modification")]
+        if mods:
+            latest = max(mods, key=lambda m: m.get("effective-date") or "")
+            if latest.get("modification-type") == "de-listed": continue
+        listed = min((m.get("effective-date") or "" for m in mods if m.get("modification-type") == "listed"), default="")
+        prog = prog_of.get(clean(t.findtext("sanctions-set-id")), "")
+        node = t.find("individual"); typ = "Individual"
+        if node is None: node = t.find("entity"); typ = "Entity"
+        if node is None:
+            node = t.find("object"); typ = "Vessel" if (node is not None and node.get("object-type") == "vessel") else "Entity"
+        if node is None: continue
+        idents = node.findall("identity")
+        if not idents: continue
+        main = next((i for i in idents if i.get("main") == "true"), idents[0])
+        name, alt = names(main)
+        for i in idents:
+            if i is not main:
+                n2, a2 = names(i); alt += [n2] + a2
+        if not name: continue
+        addr, nat, dob, ids = [], [], [], []
+        for i in idents:
+            for a in i.findall("address"):
+                addr.append(joinaddr(a.findtext("address-details"), a.findtext("zip-code"), a.findtext("c-o")))
+            for d in i.findall("day-month-year"):
+                dob.append("-".join(x for x in [d.get("year"), d.get("month") and d.get("month").zfill(2), d.get("day") and d.get("day").zfill(2)] if x))
+            for n in i.findall("nationality"):
+                nat.append(n.findtext("country") or n.get("country") or "")
+        rem = " ".join(clean(x.text) for x in node.findall("justification")[:1])
+        imo = ""
+        for o in node.findall("other-information"):
+            m = re.search(r"IMO(?: Number)?:?\s*(\d{7})", o.text or "")
+            if m: imo = "IMO " + m.group(1)
+        out.append(row("CH", t.get("ssid"), name, typ, [prog or "Switzerland"], [a for a in addr if a], rem, alt, nat, "; ".join(dict.fromkeys(dob)), "", imo, "", listed))
+    return out
+
+# ------------------------------------------------------------------ JP
+def parse_jp(raw):
+    """Ministry of Finance asset-freeze list. Bilingual headers such as "氏名（英語）"; the English columns are
+    used, with the Japanese name as the fallback when no English one is given. Dates look like 2002.3.1."""
+    rd = csv.DictReader(io.StringIO(raw.decode("utf-8-sig", errors="replace")))
+    def col(r, head, lang="英語"):
+        for k, v in r.items():
+            if k and k.startswith(head) and (not lang or k.endswith(f"（{lang}）")): return clean(v)
+        return ""
+    def plain(r, head):
+        for k, v in r.items():
+            if k and k.startswith(head): return clean(v)
+        return ""
+    def split(s): return [clean(x) for x in re.split(r"[;；\n]", s) if clean(x)]
+    out = []
+    for r in rd:
+        name = col(r, "氏名") or col(r, "氏名", "日本語")
+        if not name: continue
+        typ = "Individual" if plain(r, "個人・団体").startswith("個人") else "Entity"
+        alt = split(col(r, "別名・別称")) + split(col(r, "旧称")) + split(col(r, "別名・別称", "日本語"))
+        country, city = col(r, "住所・所在地（国）", None), col(r, "住所・所在地（都市その他の情報）", None)
+        country = next((clean(v) for k, v in r.items() if k and k.startswith("住所・所在地（国）") and k.endswith("（英語）") and clean(v)), "")
+        city = next((clean(v) for k, v in r.items() if k and k.startswith("住所・所在地（都市") and k.endswith("（英語）") and clean(v)), "")
+        d = plain(r, "リスト掲載日") or plain(r, "告示日付")
+        m = re.match(r"(\d{4})[./](\d{1,2})[./](\d{1,2})", d)
+        listed = f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}" if m else ""
+        ids = "; ".join(x for x in [plain(r, "旅券番号") and "Passport " + plain(r, "旅券番号"), plain(r, "身分証番号") and "ID " + plain(r, "身分証番号"),
+                                    plain(r, "国連参照番号") and "UN ref " + plain(r, "国連参照番号")] if x)
+        rem = " ".join(x for x in [col(r, "役職"), col(r, "称号")] if x)
+        out.append(row("JP", plain(r, "番号") or len(out), name, typ, ["Asset freeze"], [joinaddr(city, country)] if (city or country) else [], rem, alt,
+                       split(col(r, "国籍")), plain(r, "生年月日"), col(r, "出生地"), ids, "", listed))
+    return out
+
+PARSERS = {"EU": parse_eu, "UK": parse_uk, "UN": parse_un, "AU": parse_au, "CA": parse_ca, "CH": parse_ch, "JP": parse_jp}
 
 def load_all(sample_dir=None, only=None):
     """Returns (rows, status) where status[auth] = {'ok': bool, 'n': int, 'error': str}."""
