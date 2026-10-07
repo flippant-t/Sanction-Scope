@@ -1,6 +1,6 @@
 # SanctionScope
 
-Every party on the US, EU, UK, UN, Australian and Canadian sanctions lists, on one world
+Every party on the US, EU, UK, UN, Swiss, Japanese, Australian and Canadian sanctions lists, on one world
 map, with the links between them and which authorities agree. Updates itself every night.
 No server, no database, no API keys.
 
@@ -18,6 +18,8 @@ Unverified, Military End User) and State Department (nonproliferation, terrorist
 | UN | Security Council Consolidated List | XML |
 | Australia | DFAT Consolidated List | XLSX |
 | Canada | SEMA / autonomous sanctions list | XML |
+| Japan | Ministry of Finance asset-freeze list (file name is read off the index page; the file is dated) | CSV |
+| Switzerland | SECO sanctions list (de-listed targets are skipped) | XML |
 
 Parsers live in `pipeline/sources.py`. Each one is isolated: if a download fails or a format
 changes, that authority is skipped for the night, the site shows it as "failed to load", and

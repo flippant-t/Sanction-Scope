@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Screen a list · SanctionScope</title>
-<meta name="description" content="Screen a list of names against the US, EU, UK, UN, Australian and Canadian sanctions lists entirely in your browser. The names never leave your machine.">
+<title>Check a list of names · SanctionScope</title>
+<meta name="description" content="Screen a list of names against the US, EU, UK, UN, Swiss, Japanese, Australian and Canadian sanctions lists entirely in your browser. The names never leave your machine.">
 <link rel="canonical" href="https://sanctionscope.com/screen.html">
-<meta property="og:title" content="Screen a list"><meta property="og:description" content="Screen names against six sanctions lists in your browser. Nothing is uploaded.">
+<meta property="og:title" content="Check a list of names"><meta property="og:description" content="Screen names against eight sanctions lists in your browser. Nothing is uploaded.">
 <meta property="og:image" content="og.png"><meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%2316181a'/><circle cx='16' cy='16' r='5' fill='%23f4f4f1'/></svg>">
 <!-- Colours and chrome come from the same two files the rest of the site uses, both written by the
@@ -32,15 +32,15 @@
 </style>
 </head>
 <body>
-<div class="nav"><div class="in"><a class="brand" href="./">Sanction<b>Scope</b></a><a href="./">Map</a><a href="screen.html" class=on>Screen a list</a><a href="api/">API</a><a href="about.html">Coverage</a><span class="grow"></span><a href="app.html" id="acctlink">Sign in</a><a class="cta" href="api/#pricing">Pricing</a></div></div>
+<div class="nav"><div class="in"><a class="brand" href="./">Sanction<b>Scope</b></a><a href="./">Check a name</a><a href="screen.html" class=on>Check a list</a><a href="map.html">Map</a><a href="api/">API</a><a href="about.html">Coverage</a><span class="grow"></span><a href="app.html" id="acctlink">Sign in</a><a class="cta" href="api/#pricing">Pricing</a></div></div>
 <script>(function(){try{var k=Object.keys(localStorage).find(function(x){return /^sb-.*-auth-token$/.test(x)});if(!k)return;var t=JSON.parse(localStorage.getItem(k)||"null");if(!t||!t.access_token)return;if(t.expires_at&&t.expires_at*1000<Date.now())return;var a=document.getElementById("acctlink");if(a)a.textContent="Your screening";}catch(e){}})();</script>
 <main class="narrow">
-<h1>Screen a list of names</h1>
-<p class="lede">Paste names, or load a spreadsheet. Matching runs against all six lists inside this browser tab, so the names stay on your machine: nothing is sent to this site and nothing is logged. Free, no account needed.</p>
+<h1>Check a list of names</h1>
+<p class="lede">Paste names, or load a spreadsheet. Matching runs against all eight lists inside this browser tab, so the names stay on your machine: nothing is sent to this site and nothing is logged. Free, no account needed.</p>
 
 <textarea id="names" placeholder="Sberbank of Russia&#10;Ivan Ivanov&#10;Acme Trading FZE"></textarea>
 <div class="ctl">
-  <button class="btn warm" id="run">Screen</button>
+  <button class="btn warm" id="run">Check names</button>
   <input type="file" id="file" accept=".xlsx,.xls,.csv,.txt" style="display:none"><button class="btn" id="pick">Load a file</button>
   <label for="th">Threshold
     <input type="range" id="th" min="0.6" max="1" step="0.01" value="0.85">
@@ -59,66 +59,15 @@
 <p class="meta">Screening the same names on a schedule, or from your own software? The <a href="api/">API</a> does this in one request, and Pro rechecks a list against every nightly build for you.</p>
 </main>
 
-<footer><div class="in"><span class="grow">SanctionScope. US, EU, UK, UN, Australian and Canadian sanctions lists on one map. Not legal advice; verify against the official record.</span>
+<footer><div class="in"><span class="grow">SanctionScope. US, EU, UK, UN, Swiss, Japanese, Australian and Canadian sanctions lists on one map. Not legal advice; verify against the official record.</span>
 <a href="programs/">Programs</a><a href="countries/">Countries</a><a href="parties/">Parties</a><a href="vessels/">Vessels</a><a href="api/v1/feed.xml">RSS</a><a href="terms.html">Terms</a><a href="privacy.html">Privacy</a><a href="mailto:hello@sanctionscope.com">Contact</a></div></footer>
 
 <script src="vendor/xlsx.mini.min.js"></script>
+<script src="match.js"></script>
 <script>
-const LEGAL=new Set("LLC LTD LIMITED INC CORP CORPORATION CO COMPANY GMBH AG SA SAS SARL BV NV PLC PJSC JSC OJSC CJSC OAO ZAO OOO AO PAO LLP LP SRL SPA PTE PTY PVT FZE FZCO THE OF AND PUBLIC JOINT STOCK OPEN CLOSED".split(" "));
-const norm=s=>(s||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toUpperCase().replace(/[^A-Z0-9 ]+/g," ").replace(/\s+/g," ").trim();
-const tokens=s=>norm(s).split(" ").filter(t=>t&&!LEGAL.has(t));
-
-function jw(a,b){if(a===b)return 1;const la=a.length,lb=b.length;if(!la||!lb)return 0;const range=Math.max(0,Math.floor(Math.max(la,lb)/2)-1);const ma=new Array(la).fill(false),mb=new Array(lb).fill(false);let m=0;
-for(let i=0;i<la;i++){const lo=Math.max(0,i-range),hi=Math.min(lb-1,i+range);for(let j=lo;j<=hi;j++)if(!mb[j]&&a[i]===b[j]){ma[i]=mb[j]=true;m++;break;}}if(!m)return 0;let t=0,k=0;for(let i=0;i<la;i++)if(ma[i]){while(!mb[k])k++;if(a[i]!==b[k])t++;k++;}
-const j=(m/la+m/lb+(m-t/2)/m)/3;let l=0;while(l<4&&a[l]===b[l])l++;return j+l*0.1*(1-j);}
-
-let INDEX=null,TOK=null;
-
-// Every token is weighted by how many parties carry it, which the token index already knows.
-// Without this, "Maria Gonzalez" matches half a dozen unrelated people because GONZALEZ and MARIA
-// count for as much as a distinctive surname does. Same scoring the API uses.
-const IDF_MIN=0.5, IDF_MAX=8, COVERAGE_WEIGHT=0.35, TOKEN_FLOOR=0.86;
-function idfOf(t){const l=TOK&&TOK.get(t);const df=l?l.length:0;
-  if(!df)return IDF_MAX;
-  return Math.max(IDF_MIN,Math.min(IDF_MAX,Math.log(INDEX.length/df)));}
-
-function scoreParty(q,p){
-  const qt=tokens(q); if(!qt.length)return 0;
-  const qw=qt.map(idfOf), qTot=qw.reduce((a,b)=>a+b,0)||1;
-  let best=0;
-  for(const name of [p.n,...(p.alt||[]).slice(0,6)]){
-    const nt=tokens(name); if(!nt.length)continue;
-    const nw=nt.map(idfOf), nTot=nw.reduce((a,b)=>a+b,0)||1;
-    const used=new Array(nt.length).fill(false);
-    let mq=0,mn=0;
-    for(let i=0;i<qt.length;i++){
-      let bj=-1,bs=0;
-      for(let j=0;j<nt.length;j++){ if(used[j])continue; const s=qt[i]===nt[j]?1:jw(qt[i],nt[j]); if(s>bs){bs=s;bj=j;} }
-      if(bj>=0&&bs>=TOKEN_FLOOR){ used[bj]=true; mq+=qw[i]*bs; mn+=nw[bj]*bs; }
-    }
-    if(!mq)continue;
-    const s=Math.pow(mq/qTot,1-COVERAGE_WEIGHT)*Math.pow(mn/nTot,COVERAGE_WEIGHT);
-    if(s>best)best=s;
-    if(best>=0.999)break;
-  }
-  return best;
-}
-
 async function load(){
-  const r=await fetch('api/v1/index.json');INDEX=await r.json();
-  TOK=new Map();
-  INDEX.forEach((p,i)=>{const seen=new Set();for(const name of [p.n,...(p.alt||[])])for(const t of tokens(name))if(t.length>1&&!seen.has(t)){seen.add(t);if(!TOK.has(t))TOK.set(t,[]);TOK.get(t).push(i);}});
-  document.getElementById('status').textContent=`Ready. ${INDEX.length.toLocaleString()} parties loaded into this browser tab.`;
-}
-
-// Candidate generation prefers the rarest tokens in the query: pulling the posting list for
-// "BANK" or "MOHAMMED" first wastes the cap on parties that were never going to score.
-function candidates(q,cap=400){
-  const qt=[...new Set(tokens(q))];if(!qt.length)return [];
-  const lists=qt.map(t=>TOK.get(t)||[]).filter(l=>l.length).sort((a,b)=>a.length-b.length).slice(0,4);
-  const seen=new Map();
-  for(const l of lists)for(const i of l)seen.set(i,(seen.get(i)||0)+1);
-  return [...seen.entries()].sort((a,b)=>b[1]-a[1]).slice(0,cap).map(([i])=>INDEX[i]);
+  const n=await loadIndex();
+  document.getElementById('status').textContent=`Ready. ${n.toLocaleString()} parties loaded into this browser tab.`;
 }
 
 const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -139,7 +88,7 @@ function run(){
   document.getElementById('out').innerHTML=
     '<table><tr><th>Name</th><th>Result</th><th>Best match</th><th class="score">Score</th><th class="nw">Listed by</th><th>Programs</th></tr>'
     + RESULTS.map(r=>r.hits.length
-        ? r.hits.map((h,i)=>`<tr>${i===0?`<td rowspan="${r.hits.length}">${esc(r.name)}</td><td rowspan="${r.hits.length}" class="hit nw">possible match</td>`:''}<td><a href="./#p=${encodeURIComponent(h.p.id)}" target="_blank" rel="noopener">${esc(h.p.n)}</a> <span class="meta">${esc(h.p.t)}${h.p.cc?', '+esc(h.p.cc):''}</span></td><td class="score">${h.score.toFixed(2)}</td><td class="nw">${esc((h.p.au||[]).join(', '))}</td><td class="meta">${esc((h.p.p||[]).slice(0,3).join(', '))}</td></tr>`).join('')
+        ? r.hits.map((h,i)=>`<tr>${i===0?`<td rowspan="${r.hits.length}">${esc(r.name)}</td><td rowspan="${r.hits.length}" class="hit nw">possible match</td>`:''}<td><a href="map.html#p=${encodeURIComponent(h.p.id)}" target="_blank" rel="noopener">${esc(h.p.n)}</a> <span class="meta">${esc(h.p.t)}${h.p.cc?', '+esc(h.p.cc):''}</span></td><td class="score">${h.score.toFixed(2)}</td><td class="nw">${esc((h.p.au||[]).join(', '))}</td><td class="meta">${esc((h.p.p||[]).slice(0,3).join(', '))}</td></tr>`).join('')
         : `<tr><td>${esc(r.name)}</td><td class="clear nw">no match</td><td colspan="4"></td></tr>`).join('')
     + '</table>';
 }

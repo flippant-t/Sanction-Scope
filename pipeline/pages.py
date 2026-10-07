@@ -92,7 +92,7 @@ def write(path, content):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f: f.write(content)
 
-AUTH_NAME = {"US": "United States", "EU": "European Union", "UK": "United Kingdom", "UN": "United Nations", "AU": "Australia", "CA": "Canada"}
+AUTH_NAME = {"US": "United States", "EU": "European Union", "UK": "United Kingdom", "UN": "United Nations", "AU": "Australia", "CA": "Canada", "CH": "Switzerland", "JP": "Japan"}
 def party_link(p, rel):
     if p.get("pg"): return f'<a href="{rel}parties/{p["pg"]}.html">{esc(p["n"])}</a>'
     return f'<a href="{rel}#p={esc(p["id"])}">{esc(p["n"])}</a>'
@@ -231,7 +231,7 @@ def build_pages(site_url):
     # counters that used to sit above the table repeated numbers the table already gives.
     AUTH_LONG = {"US": "US Consolidated Screening List (OFAC SDN and non-SDN, BIS Entity List, Denied Persons, Unverified and MEU lists, State Department ISN and AECA)",
                  "EU": "EU Consolidated Financial Sanctions List", "UK": "UK Sanctions List (FCDO)", "UN": "UN Security Council Consolidated List",
-                 "AU": "Australia DFAT Consolidated List", "CA": "Canada SEMA and autonomous sanctions list"}
+                 "AU": "Australia DFAT Consolidated List", "CA": "Canada SEMA and autonomous sanctions list", "CH": "Switzerland SECO sanctions list", "JP": "Japan Ministry of Finance asset-freeze list"}
     auth = meta.get("authorities", {})
     inf = Counter(p.get("inf") for p in parties if p.get("inf"))
     n_multi = meta.get("multi_listed", 0)
@@ -261,7 +261,7 @@ def build_pages(site_url):
 <p>The source lists are public government publications. The merged dataset is released under CC0 through the <a href="{site_url}api/">API</a>. Attribution to SanctionScope is appreciated, not required.</p>
 <p class="small">Source acknowledgements: US Consolidated Screening List, International Trade Administration, US Department of Commerce. EU Consolidated Financial Sanctions List, European Commission, Directorate-General for Financial Stability, Financial Services and Capital Markets Union. UK Sanctions List, Foreign, Commonwealth and Development Office, used under the Open Government Licence v3.0. UN Security Council Consolidated List, United Nations. Consolidated List, Australian Department of Foreign Affairs and Trade, CC BY 4.0. Consolidated Canadian Autonomous Sanctions List, Global Affairs Canada, Open Government Licence Canada. City coordinates from GeoNames, CC BY 4.0.</p>
 <p class="small">Corrections and questions: <a href="mailto:hello@sanctionscope.com">hello@sanctionscope.com</a>. See also the <a href="{site_url}terms.html">terms of service</a> and <a href="{site_url}privacy.html">privacy policy</a>.</p>"""
-    write(os.path.join(SITE, "about.html"), page("Coverage", "Which sanctions lists SanctionScope has loaded and when, how the six authorities' lists are merged, and what the site does and does not claim.", body, "", f"{site_url}about.html", on="Coverage"))
+    write(os.path.join(SITE, "about.html"), page("Coverage", "Which sanctions lists SanctionScope has loaded and when, how the eight authorities' lists are merged, and what the site does and does not claim.", body, "", f"{site_url}about.html", on="Coverage"))
     urls.append("about.html")
 
     # ---------------- vessels page (roster static, positions filled live from /api/v1/vessels)
@@ -292,7 +292,7 @@ document.getElementById('aisnote').textContent=seen?`${{seen.toLocaleString()}} 
 const f=()=>{{const q=document.getElementById('vq').value.toLowerCase();const only=document.getElementById('vonly').checked;for(const tr of t.querySelectorAll('tr[data-id]')){{const ok=(!q||tr.textContent.toLowerCase().includes(q))&&(!only||tr.dataset.seen);tr.style.display=ok?'':'none';}}}};
 document.getElementById('vq').oninput=f;document.getElementById('vonly').onchange=f;}})();
 </script>"""
-        write(os.path.join(SITE, "vessels", "index.html"), page("Sanctioned vessels and their IMO numbers", f"{len(roster):,} vessels designated by the US, EU, UK, UN, Australian and Canadian authorities, searchable by name, IMO number and flag.", body, "../", f"{site_url}vessels/"))
+        write(os.path.join(SITE, "vessels", "index.html"), page("Sanctioned vessels and their IMO numbers", f"{len(roster):,} vessels designated by the US, EU, UK, UN, Swiss, Japanese, Australian and Canadian authorities, searchable by name, IMO number and flag.", body, "../", f"{site_url}vessels/"))
         urls.append("vessels/")
 
     # ---------------- terms + privacy
@@ -315,7 +315,7 @@ document.getElementById('vq').oninput=f;document.getElementById('vonly').onchang
 <h2>Your rights</h2><p>You can ask what we hold about you, ask us to delete it, or cancel your subscription, by emailing <a href="mailto:hello@sanctionscope.com">hello@sanctionscope.com</a>. If you are in the EU, UK or California you have additional statutory rights, which we will honour on request.</p>
 <h2>Changes</h2><p>Changes to this policy are posted here with a new date.</p>"""
     write(os.path.join(SITE, "privacy.html"), page("Privacy policy", "What SanctionScope collects and does not collect, how API subscriber data is handled, and your rights.", privacy, "", f"{site_url}privacy.html"))
-    urls += ["terms.html", "privacy.html"]
+    urls += ["map.html", "screen.html", "terms.html", "privacy.html"]
 
     # ---------------- sitemap + robots
     if site_url:
